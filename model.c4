@@ -1,0 +1,104 @@
+specification {
+  element actor
+  element system
+  element container
+  element component
+}
+
+model {
+  customer = actor 'Customer' {
+    description 'Submits support questions (refunds, shipping, subscriptions, incidents)'
+  }
+
+  support_evaluator = actor 'Benchmark Suite' {
+    description 'Runs 14 held-out evaluation cases against all pipelines'
+  }
+
+  northstar = system 'Northstar Support AI' {
+    description 'Hybrid RAG + LoRA Customer Support Architecture'
+
+    kb = container 'Policy Sources' {
+      description '6 approved Markdown policies (knowledge_base/*.md)'
+      technology 'Markdown files'
+    }
+
+    qdrant = container 'Vector Index' {
+      description 'Stores dense chunk embeddings with metadata (store.py)'
+      technology 'Qdrant (Local In-Memory)'
+    }
+
+    retriever = component '1. Shared Dense Retriever' {
+      description 'retrieval.py: Embeds question (all-MiniLM-L6-v2) & retrieves top-k chunks >= 0.30'
+      technology 'SentenceTransformers'
+    }
+
+    prompt_builder = component '2. Prompt Formatter' {
+      description 'prompts.py: Combines system instruction, [source-id] evidence, and question'
+      technology 'HuggingFace Tokenizer'
+    }
+
+    generator = component '3. Generation Engine' {
+      description 'generation.py: Executes base-only, rag-base, or rag-lora (SmolLM2-135M)'
+      technology 'PyTorch + PEFT'
+    }
+
+    guardrail = component '4. Citation & Safety Guardrail' {
+      description 'pipeline.py: Validates [source-id] citations against evidence; triggers human fallback if invalid'
+      technology 'Deterministic Rules'
+    }
+  }
+
+  customer -> northstar.retriever 'Submits support question'
+  support_evaluator -> northstar.retriever 'Executes evaluation benchmark'
+
+  northstar.kb -> northstar.qdrant 'Ingests policy chunks and embeddings'
+  northstar.retriever -> northstar.qdrant 'Cosine similarity search (top-k=3, min_score=0.30)'
+  northstar.retriever -> northstar.prompt_builder 'Passes accepted evidence chunks'
+  northstar.prompt_builder -> northstar.generator 'Feeds formatted prompt to model'
+
+  northstar.generator -> northstar.guardrail 'Streams greedy generated tokens'
+  northstar.guardrail -> customer 'Delivers verified answer or escalates'
+}
+
+views {
+  view index of northstar {
+    title '1. System Landscape: Northstar Hybrid RAG + LoRA'
+    include *
+  }
+
+  dynamic view system_walkthrough {
+    title '1. System Walkthrough: Step-by-Step Flow'
+    customer -> northstar.retriever 'Step 1: Customer submits question'
+    northstar.retriever -> northstar.qdrant 'Step 2: Embeds query & searches cosine similarity'
+    northstar.retriever -> northstar.prompt_builder 'Step 3: Passes accepted policy chunks'
+    northstar.prompt_builder -> northstar.generator 'Step 4: Formats chat prompt with system instruction'
+    northstar.generator -> northstar.guardrail 'Step 5: Streams tokens into citation guard'
+    northstar.guardrail -> customer 'Step 6: Delivers verified answer or human escalation'
+  }
+
+  view retrieval_pipeline {
+    title '3. Policy Ingestion & Dense Retrieval'
+    include
+      customer,
+      northstar.kb,
+      northstar.qdrant,
+      northstar.retriever,
+      northstar.prompt_builder
+  }
+
+  view hybrid_generation {
+    title '4. Generation Engine & Citation Guardrail'
+    include
+      northstar.prompt_builder,
+      northstar.generator,
+      northstar.guardrail,
+      customer
+  }
+
+  dynamic view generation_walkthrough {
+    title '4. Generation Walkthrough: Step-by-Step Guardrail'
+    northstar.prompt_builder -> northstar.generator 'Step 1: Injects prompt with [source-id] evidence'
+    northstar.generator -> northstar.guardrail 'Step 2: SmolLM2 + LoRA outputs answer with candidate [source-id]'
+    northstar.guardrail -> customer 'Step 3: Validates citations against retrieved hits; rejects if missing'
+  }
+}
