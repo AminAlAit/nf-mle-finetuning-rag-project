@@ -4,7 +4,7 @@
 
 - Base model: `HuggingFaceTB/SmolLM2-135M-Instruct`
 - Base revision: `12fd25f77366fa6b3b4b768ec3050bf629380bac`
-- Adapter path: `artifacts/support-lora-adapter`
+- Adapter path: `artifacts\support-lora-adapter`
 - Embedding model: `sentence-transformers/all-MiniLM-L6-v2`
 - Embedding revision: `1110a243fdf4706b3f48f1d95db1a4f5529b4d41`
 - Vector database: `Qdrant` local mode with cosine similarity
@@ -14,16 +14,16 @@
 - Prompt: shared system instruction, `[source-id] text` context, question, assistant answer; native chat template when available, plain-text fallback otherwise
 - Inference prompt limit: `256` tokens; generation limit: `80` new tokens; greedy decoding
 - Overlength prompts and training examples fail explicitly; they are not silently truncated
-- Training data SHA-256: `a842ca7e98e2f0e37877f0c6d8d60b62479b217e1e0338ef0187b9fd6e65de07`
+- Training data SHA-256: `b627d04b8eb673d21e2abf21cdc9c6d91cc8500ac2c387990357bd3e0aad1bc5`
 - LoRA targets: `q_proj, v_proj`
 - LoRA rank / alpha / dropout: `8` / `16` / `0.05`
 - Training: `8` epochs, learning rate `0.0002`, seed `42`
 - Training sequence limit: `256` tokens (prompt plus answer)
 - Optimizer: `AdamW`, batch size `1`, default betas `(0.9, 0.999)`, weight decay `0.01`
-- Training device: `mps`
-- Training and save duration: `14.4` seconds
+- Training device: `cpu`
+- Training and save duration: `84.7` seconds
 - Trainable parameters: `460800` of `134975808` (`0.341%`)
-- Training loss: `1.547` to `0.506`
+- Training loss: `1.547` to `0.505`
 
 ## Metric Rubric
 
@@ -47,9 +47,9 @@
 
 | System | Relevance | Faithfulness proxy | Style | Decision accuracy | Mean latency (s) |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| base-only | 0.000 | 0.000 | 0.976 | 0.714 | 0.708 |
-| rag-base | 0.143 | 0.143 | 0.143 | 0.143 | 0.697 |
-| rag-lora | 0.393 | 0.643 | 0.786 | 0.643 | 0.640 |
+| base-only | 0.000 | 0.000 | 0.976 | 0.714 | 2.530 |
+| rag-base | 0.143 | 0.143 | 0.143 | 0.143 | 2.752 |
+| rag-lora | 0.321 | 0.357 | 0.571 | 0.429 | 2.577 |
 
 ### Content Versus Citation Format
 
@@ -59,13 +59,13 @@ Raw coverage is measured before citation rejection on supported cases (no genera
 | --- | ---: | ---: |
 | base-only | 0.000 | 0/14 |
 | rag-base | 0.500 | 12/14 |
-| rag-lora | 0.600 | 3/14 |
+| rag-lora | 0.750 | 6/14 |
 
 ## Hybrid Delta Against Baseline RAG
 
-- Answer relevance delta: `+0.250`
-- Faithfulness delta: `+0.500`
-- Style-compliance delta: `+0.643`
+- Answer relevance delta: `+0.179`
+- Faithfulness delta: `+0.214`
+- Style-compliance delta: `+0.429`
 
 ## Per-Case Comparison
 
@@ -101,12 +101,12 @@ Raw coverage is measured before citation rejection on supported cases (no genera
 | eval-bicycle | rag-base | abstained | 1.00 | yes | 1.00 | - |
 | eval-refund-ticket | rag-lora | invalid-citations | 0.00 | no | 0.00 | - |
 | eval-duplicate-payment | rag-lora | answered | 1.00 | yes | 1.00 | refunds |
-| eval-authenticator | rag-lora | answered | 1.00 | yes | 1.00 | account-security |
-| eval-passport | rag-lora | answered | 0.00 | yes | 1.00 | account-security |
-| eval-packed-address | rag-lora | answered | 0.00 | yes | 1.00 | shipping |
+| eval-authenticator | rag-lora | invalid-citations | 0.00 | no | 0.00 | - |
+| eval-passport | rag-lora | answered | 0.00 | no | 1.00 | account-security, incidents |
+| eval-packed-address | rag-lora | invalid-citations | 0.00 | no | 0.00 | - |
 | eval-standard-shipping | rag-lora | answered | 1.00 | yes | 1.00 | shipping |
 | eval-annual-refund | rag-lora | answered | 0.50 | yes | 1.00 | subscriptions |
-| eval-pause | rag-lora | answered | 0.00 | yes | 1.00 | subscriptions |
+| eval-pause | rag-lora | invalid-citations | 0.00 | no | 0.00 | - |
 | eval-outage-updates | rag-lora | invalid-citations | 0.00 | no | 0.00 | - |
 | eval-log-secrets | rag-lora | invalid-citations | 0.00 | no | 0.00 | - |
 | eval-bank-chargeback | rag-lora | answered | 0.00 | no | 1.00 | refunds |
@@ -126,7 +126,7 @@ Raw coverage is measured before citation rejection on supported cases (no genera
 - `rag-lora` on `eval-shipping-compensation`: status `answered`, relevance `0.00`, citation/term check `no`. The system answered a question not covered by the policies; similarity alone does not establish answerability.
 - `rag-lora` on `eval-refund-ticket`: status `invalid-citations`, relevance `0.00`, citation/term check `no`. Citation formatting or source IDs failed validation; inspect the raw trace before attributing this to content quality.
 - Shared retrieval recall is `1.000`; failures after successful retrieval are generation, citation, or answer-coverage failures.
-- The adapter changes faithfulness by `+0.500` and decision accuracy from `0.143` to `0.643`. Remaining invalid citations still require rejection rather than automatic repair.
+- The adapter changes faithfulness by `+0.214` and decision accuracy from `0.143` to `0.429`. Remaining invalid citations still require rejection rather than automatic repair.
 
 ## Threshold Decision
 
