@@ -85,6 +85,11 @@ def validate_data(settings_path: tuple[Path, Path, Path]) -> DataSummary:
                 f"{sorted(missing)}"
             )
 
+    # ==============================================================================
+    # 1. SCIENTIFIC INTEGRITY GUARD: ZERO-LEAKAGE CONTAMINATION CHECK
+    # Guarantees the test measures generalization, never rote memorization.
+    # Execution halts immediately if any held-out evaluation query exists in training.
+    # ==============================================================================
     training_questions = {example.question.casefold() for example in examples}
     leaked_cases = [
         case.id for case in cases if case.question.casefold() in training_questions

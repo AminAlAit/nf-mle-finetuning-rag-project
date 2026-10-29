@@ -76,6 +76,12 @@ def _encoded_example(
         raise ValueError(
             "Training text must start with the exact inference prompt tokens"
         )
+    # ==============================================================================
+    # 2. CAUSAL LOSS MASKING TRICK: TARGET SUPERVISION ON ANSWERS ONLY
+    # Labels set to -100 are strictly ignored by PyTorch CrossEntropyLoss.
+    # Backpropagation updates weights ONLY on generated answer tokens—never wasting
+    # capacity learning to predict the user's prompt or retrieved policy text.
+    # ==============================================================================
     labels = input_ids.clone()
     prompt_length = min(prompt_input_ids.shape[1], labels.shape[1])
     labels[:, :prompt_length] = -100
